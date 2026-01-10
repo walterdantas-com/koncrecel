@@ -5,6 +5,8 @@ import SearchField from './components/SearchField';
 import ProductTable from './components/ProductTable';
 
 const MASTER_PIN = '2025';
+const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTL6WsNyflZ2dg_hWRU8fdqk5VWYVhp4ymIVMa0Wv50onOu_7elzdPeO5RkzPHlQ0OHDI0AgfRmo2lh/pub?gid=0&single=true&output=csv';
+const DEFAULT_SECURITY_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTL6WsNyflZ2dg_hWRU8fdqk5VWYVhp4ymIVMa0Wv50onOu_7elzdPeO5RkzPHlQ0OHDI0AgfRmo2lh/pub?gid=1675041371&single=true&output=csv';
 
 const App: React.FC = () => {
   const [isAuthorized, setIsAuthorized] = useState(() => localStorage.getItem('koncrecel_authorized') === 'true');
@@ -12,11 +14,11 @@ const App: React.FC = () => {
   const [pinError, setPinError] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
 
-  const [sheetUrl, setSheetUrl] = useState(() => localStorage.getItem('koncrecel_sheet_url') || '');
-  const [securityUrl, setSecurityUrl] = useState(() => localStorage.getItem('koncrecel_security_url') || '');
+  const [sheetUrl, setSheetUrl] = useState(() => localStorage.getItem('koncrecel_sheet_url') || DEFAULT_SHEET_URL);
+  const [securityUrl, setSecurityUrl] = useState(() => localStorage.getItem('koncrecel_security_url') || DEFAULT_SECURITY_URL);
   const [publicAppUrl, setPublicAppUrl] = useState(() => localStorage.getItem('koncrecel_public_url') || '');
   
-  const [showConfig, setShowConfig] = useState(!localStorage.getItem('koncrecel_sheet_url'));
+  const [showConfig, setShowConfig] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [tempSheetUrl, setTempSheetUrl] = useState(sheetUrl);
   const [tempSecurityUrl, setTempSecurityUrl] = useState(securityUrl);
@@ -38,7 +40,7 @@ const App: React.FC = () => {
   const parseCSV = (text: string): string[][] => {
     const trimmed = text.trim();
     if (trimmed.toLowerCase().includes('<!doctype') || trimmed.toLowerCase().includes('<html')) {
-      throw new Error("Link da Planilha inválido. Use a opção 'Publicar na Web' > 'CSV'.");
+      throw new Error("Link da Planilha inválido. Verifique se publicou como CSV.");
     }
     const rows: string[][] = [];
     const lines = trimmed.split(/\r?\n/);
@@ -160,10 +162,10 @@ const App: React.FC = () => {
           <div className="bg-blue-600 w-20 h-20 rounded-[2rem] flex items-center justify-center text-white mx-auto mb-10 shadow-xl">
              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
           </div>
-          <h1 className="text-3xl font-black uppercase tracking-tighter">Koncrecel <span className="text-blue-600">Catálogo</span></h1>
+          <h1 className="text-3xl font-black uppercase tracking-tighter text-[#000000]">Koncrecel <span className="text-blue-600">Catálogo</span></h1>
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.3em] mt-2 mb-10">Acesso Restrito</p>
           <form onSubmit={handleLogin} className="space-y-6">
-            <input type="password" inputMode="numeric" placeholder="PIN" className={`w-full text-center text-4xl tracking-[0.3em] py-6 bg-gray-50 border-2 rounded-[2rem] outline-none transition-all ${pinError ? 'border-red-500 animate-shake' : 'border-gray-100 focus:border-blue-500'}`} value={pinInput} onChange={e => setPinInput(e.target.value)} autoFocus />
+            <input type="password" inputMode="numeric" placeholder="PIN" className={`w-full text-center text-4xl tracking-[0.3em] py-6 bg-gray-50 border-2 rounded-[2rem] outline-none transition-all ${pinError ? 'border-red-500 animate-shake text-red-500' : 'border-gray-100 focus:border-blue-500 text-[#000000]'}`} value={pinInput} onChange={e => setPinInput(e.target.value)} autoFocus />
             <button type="submit" disabled={isChecking} className="w-full bg-blue-600 text-white font-black py-6 rounded-[2rem] shadow-xl uppercase text-xs tracking-widest">{isChecking ? "Validando..." : "Entrar"}</button>
           </form>
           <button onClick={() => setShowConfig(true)} className="mt-12 text-[9px] text-gray-300 hover:text-blue-500 uppercase font-black tracking-widest">Ajustes Koncrecel</button>
@@ -187,7 +189,7 @@ const App: React.FC = () => {
               <div className="bg-blue-600 p-2 rounded-2xl text-white shadow-lg">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               </div>
-              <h1 className="text-xl font-black uppercase tracking-tighter">Koncrecel <span className="text-blue-600">Busca</span></h1>
+              <h1 className="text-xl font-black uppercase tracking-tighter text-[#000000]">Koncrecel <span className="text-blue-600">Busca</span></h1>
             </div>
             <div className="flex items-center bg-gray-50 rounded-2xl p-1 border border-gray-100">
               <HeaderBtn onClick={() => setShowShare(true)} icon="share" />
@@ -220,7 +222,7 @@ const App: React.FC = () => {
         ) : (
           <div className="space-y-6">
             <div className="flex justify-between items-center px-4">
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{filteredProducts.length} PRODUTOS ENCONTRADOS</span>
+              <span className="text-[10px] font-black text-[#000000] uppercase tracking-widest font-bold">{filteredProducts.length} PRODUTOS ENCONTRADOS</span>
             </div>
             <ProductTable products={filteredProducts} highlight={filters} />
           </div>
@@ -248,7 +250,7 @@ const ConfigModal: React.FC<any> = ({ tempSheetUrl, setTempSheetUrl, tempSecurit
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 w-full max-w-xl border border-gray-100 max-h-[90vh] overflow-y-auto">
-        <h3 className="text-xl font-black uppercase tracking-tighter mb-8 text-center font-bold">Painel Koncrecel</h3>
+        <h3 className="text-xl font-black uppercase tracking-tighter mb-8 text-center font-bold text-[#000000]">Painel Koncrecel</h3>
         
         <div className="space-y-8">
           <ConfigInput label="Tabela de Produtos (CSV)" value={tempSheetUrl} onChange={setTempSheetUrl} />
@@ -284,9 +286,9 @@ const ConfigModal: React.FC<any> = ({ tempSheetUrl, setTempSheetUrl, tempSecurit
           </div>
 
           <div className="p-6 bg-gray-50 rounded-[2rem] border border-gray-100 text-center">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Hospedagem Koncrecel (Vercel)</p>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Hospedagem Koncrecel (GitHub/Vercel)</p>
               <p className="text-[9px] text-gray-500 font-bold uppercase leading-relaxed mb-4 px-4">
-                Para um link profissional (ex: koncrecel.vercel.app), baixe o código e publique na <span className="text-blue-600">Vercel.com</span>.
+                Sempre use links CSV diretos do Google Sheets para que as alterações reflitam em tempo real.
               </p>
           </div>
         </div>
@@ -302,8 +304,8 @@ const ConfigModal: React.FC<any> = ({ tempSheetUrl, setTempSheetUrl, tempSecurit
 
 const ConfigInput: React.FC<any> = ({ label, value, onChange, placeholder }) => (
   <div className="space-y-3">
-    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block px-2">{label}</label>
-    <textarea className="w-full p-6 bg-gray-50 border-2 border-gray-100 rounded-[2rem] text-[12px] outline-none font-mono min-h-[80px] focus:border-blue-500 focus:bg-white transition-all shadow-inner" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder || "Link aqui..."} />
+    <label className="text-[10px] font-black text-[#000000] uppercase tracking-widest block px-2 font-bold">{label}</label>
+    <textarea className="w-full p-6 bg-gray-50 border-2 border-gray-100 rounded-[2rem] text-[12px] outline-none font-mono min-h-[80px] focus:border-blue-500 focus:bg-white transition-all shadow-inner text-[#000000]" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder || "Link aqui..."} />
   </div>
 );
 
@@ -327,19 +329,19 @@ const ShareModal: React.FC<any> = ({ onClose, copied, setCopied, publicAppUrl })
       <div className="bg-white rounded-[4rem] shadow-2xl p-10 w-full max-w-sm border border-gray-100 text-center relative animate-in fade-in zoom-in duration-500">
         <button onClick={onClose} className="absolute top-8 right-8 text-gray-300 hover:text-gray-600"><svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg></button>
         
-        <h3 className="text-2xl font-black uppercase tracking-tighter mb-10">Compartilhar</h3>
+        <h3 className="text-2xl font-black uppercase tracking-tighter mb-10 text-[#000000]">Compartilhar</h3>
         
         <div className={`p-8 rounded-[3.5rem] inline-block mb-10 border-2 transition-all ${isWrongLink ? 'bg-amber-50 border-amber-100 shadow-xl shadow-amber-50' : 'bg-gray-50 border-gray-100 shadow-inner'}`}>
           <img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(currentUrl)}&margin=15&color=${isWrongLink ? 'b45309' : '2563eb'}`} alt="QR Code" className="w-48 h-48 mix-blend-multiply" />
         </div>
 
         <div className="mb-10 px-4">
-            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-3">Link do Catálogo Koncrecel</p>
+            <p className="text-[10px] font-black text-[#000000] uppercase tracking-widest mb-3 font-bold">Link do Catálogo Koncrecel</p>
             <div className={`p-4 rounded-2xl border overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-mono font-bold transition-all ${isWrongLink ? 'bg-amber-50 border-amber-100 text-amber-700' : 'bg-blue-50 border-blue-100 text-blue-600'}`}>
                 {currentUrl}
             </div>
             {isWrongLink && (
-              <p className="mt-3 text-[9px] text-amber-600 font-black uppercase tracking-wider">Modo de Edição (Somente você)</p>
+              <p className="mt-3 text-[9px] text-amber-600 font-black uppercase tracking-wider font-bold">Modo de Edição (Somente você)</p>
             )}
         </div>
 

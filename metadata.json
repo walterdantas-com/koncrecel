@@ -1,5 +1,5 @@
-
 {
   "name": "Koncrecel Catálogo",
-  "description": "Sistema de busca avançada para o catálogo de produtos Koncrecel, permitindo filtrar por produto, atributos, aplicação e superfície."
+  "description": "Sistema de busca avançada para o catálogo de produtos Koncrecel, permitindo filtrar por produto, atributos, aplicação e superfície.",
+  "requestFramePermissions": []
 }
