@@ -6,6 +6,8 @@ export interface Product {
   superficie: string;
   embalagens: string;
   detalhes: string;
+  foto: string;
+  cor: string;
 }
 
 export interface SearchFilters {
