@@ -1,20 +1,19 @@
 
 export interface Product {
   produto: string;
-  atributos: string;
+  tipo: string;
   aplicacao: string;
   superficie: string;
   embalagens: string;
-  detalhes: string;
-  foto: string;
-  cor: string;
+  caracteristica: string;
+  fotos: string[]; // Array para suportar carrossel
+  cores: string;
+  rendimento: string;
 }
 
 export interface SearchFilters {
   produto: string;
-  atributos: string;
+  tipo: string;
   aplicacao: string;
   superficie: string;
-  embalagens: string;
-  detalhes: string;
 }
