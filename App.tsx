@@ -5,13 +5,14 @@ import SearchField from './components/SearchField';
 import ProductTable from './components/ProductTable';
 
 const MASTER_PIN = '2025';
+// Planilha de Produtos
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTL6WsNyflZ2dg_hWRU8fdqk5VWYVhp4ymIVMa0Wv50onOu_7elzdPeO5RkzPHlQ0OHDI0AgfRmo2lh/pub?gid=0&single=true&output=csv';
-const DEFAULT_SECURITY_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTL6WsNyflZ2dg_hWRU8fdqk5VWYVhp4ymIVMa0Wv50onOu_7elzdPeO5RkzPHlQ0OHDI0AgfRmo2lh/pub?gid=1675041371&single=true&output=csv';
+// Planilha de Segurança (Nova URL fornecida pelo usuário)
+const DEFAULT_SECURITY_URL = 'https://docs.google.com/spreadsheets/d/15Jx0pkSQsgW_bATIAoc14yggdU0dZ-nAOl0s2YYggdE/export?format=csv&gid=0';
 
 const KONCRECEL_WHATSAPP = '44991647722';
 const KONCRECEL_EMAIL = 'koncrecel.vendas@gmail.com';
 
-// SUBSTITUA OS TEXTOS ABAIXO PELOS LINKS DE COMPARTILHAMENTO DO DRIVE PARA AS LOGOS
 const LOGO_FULL_URL = 'https://drive.google.com/file/d/1xzOmLtf45Gl78ko2hulY80wp6M8Mzlhv/view?usp=sharing'; 
 const LOGO_ICON_URL = 'https://drive.google.com/file/d/1XlGtQt8Vd2T-thux9YmlIYP2ptGmvHJP/view?usp=sharing';
 
@@ -56,7 +57,6 @@ const App: React.FC = () => {
 
   const parseCSV = (text: string): string[][] => {
     const rows: string[][] = [];
-    // Remove caracteres de controle estranhos (BOM, etc)
     const cleanText = text.replace(/^\uFEFF/, '').trim();
     const lines = cleanText.split(/\r?\n/);
     if (lines.length === 0) return [];
@@ -97,13 +97,13 @@ const App: React.FC = () => {
       const idx = {
         produto: findIdx(['produto', 'nome', 'item']),
         tipo: findIdx(['tipo', 'categoria', 'grupo']),
-        aplicacao: findIdx(['aplicacao', 'onde', 'uso']),
-        superficie: findIdx(['superficie', 'base', 'substrato']),
-        embalagens: findIdx(['embalagem', 'embalagens', 'emb', 'unidade', 'medida']),
-        caracteristica: findIdx(['caracteristica', 'atributo', 'detalhe']),
-        foto: findIdx(['foto', 'imagem', 'link']),
-        cores: findIdx(['cor', 'tonalidade', 'cores']),
-        rendimento: findIdx(['rendimento', 'consumo'])
+        aplicacao: findIdx(['aplicacao', 'onde', 'uso', 'finalidade']),
+        superficie: findIdx(['superficie', 'base', 'substrato', 'chao']),
+        embalagens: findIdx(['embalagem', 'embalagens', 'emb', 'unidade', 'medida', 'vol', 'peso', 'apresentacao']),
+        caracteristica: findIdx(['caracteristica', 'atributo', 'detalhe', 'sobre']),
+        foto: findIdx(['foto', 'imagem', 'link', 'url']),
+        cores: findIdx(['cor', 'tonalidade', 'cores', 'paleta']),
+        rendimento: findIdx(['rendimento', 'consumo', 'cobertura'])
       };
 
       const mapped = rows.slice(1).map(f => {
@@ -111,7 +111,7 @@ const App: React.FC = () => {
         const photoList = rawPhotos.split(/[;|]/).map(url => convertDriveUrl(url)).filter(u => u !== '');
 
         return {
-          produto: f[idx.produto] || 'Sem Nome',
+          produto: f[idx.produto] || '',
           tipo: f[idx.tipo] || '',
           aplicacao: f[idx.aplicacao] || '',
           superficie: f[idx.superficie] || '',
@@ -121,12 +121,18 @@ const App: React.FC = () => {
           cores: f[idx.cores] || '',
           rendimento: f[idx.rendimento] || ''
         };
-      }).filter(p => p.produto !== 'Sem Nome' && p.produto.trim() !== '');
+      }).filter(p => p.produto.trim() !== '');
       
       setProducts(mapped);
     } catch (err: any) {
       console.error("Erro ao carregar dados.");
     } finally { setLoading(false); }
+  };
+
+  const handleFullReset = () => {
+    setFilters({ produto: '', tipo: '', aplicacao: '', superficie: '' });
+    setSelectedIds(new Set());
+    fetchData();
   };
 
   useEffect(() => { 
@@ -137,10 +143,10 @@ const App: React.FC = () => {
     e.preventDefault();
     setPinError(false);
     
-    // Limpeza agressiva do input: remove espaços
-    const cleanInput = pinInput.trim().replace(/\s/g, '');
+    const normalize = (s: any) => s ? s.toString().toLowerCase().replace(/[.,\s-]/g, '').trim() : '';
+    const cleanInput = normalize(pinInput);
     
-    if (cleanInput === MASTER_PIN) {
+    if (cleanInput === normalize(MASTER_PIN)) {
       setIsAuthorized(true);
       localStorage.setItem('koncrecel_authorized', 'true');
       return;
@@ -148,17 +154,14 @@ const App: React.FC = () => {
     
     setIsChecking(true);
     try {
-      const response = await fetch(`${securityUrl.replace(/\s/g, '').trim()}?t=${Date.now()}`);
+      const response = await fetch(`${securityUrl.replace(/\s/g, '').trim()}`);
       const text = await response.text();
       const csvData = parseCSV(text);
       
-      // Normalização agressiva para comparação: remove pontos, vírgulas e espaços
-      const normalize = (s: string) => s.toString().toLowerCase().replace(/[.,\s]/g, '');
+      // Verifica especificamente na Coluna A de cada linha, ignorando o cabeçalho
+      const pins = csvData.slice(1).map(row => normalize(row[0]));
       
-      const targetPin = normalize(cleanInput);
-      const pins = csvData.flat().map(p => normalize(p));
-      
-      if (pins.some(p => p === targetPin && p !== '')) {
+      if (pins.some(p => p === cleanInput && p !== '')) {
         setIsAuthorized(true);
         localStorage.setItem('koncrecel_authorized', 'true');
       } else { 
@@ -229,26 +232,26 @@ const App: React.FC = () => {
               <button type="submit" disabled={isChecking} className="w-full bg-[#000000] text-white font-black py-5 rounded-2xl uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-transform">
                 {isChecking ? "Verificando..." : "Entrar"}
               </button>
-              {pinError && <p className="text-red-500 text-[10px] font-black uppercase tracking-widest">Acesso não autorizado</p>}
+              {pinError && <p className="text-red-500 text-[10px] font-black uppercase tracking-widest mt-3">PIN incorreto ou não autorizado</p>}
             </form>
-            <button onClick={() => setShowConfig(true)} className="mt-12 text-[9px] text-gray-300 uppercase font-bold hover:text-blue-500 tracking-widest">Configurações do Sistema</button>
+            <button onClick={() => setShowConfig(true)} className="mt-12 text-[9px] text-gray-300 uppercase font-bold hover:text-blue-500 tracking-widest">Configuração Técnica</button>
           </div>
           {showConfig && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <div className="bg-white p-8 rounded-[2.5rem] w-full max-w-sm shadow-2xl">
-                <h3 className="font-black uppercase mb-6 text-gray-900 tracking-widest">Ajustes Técnicos</h3>
+                <h3 className="font-black uppercase mb-6 text-gray-900 tracking-widest">Ajustes de Planilha</h3>
                 <div className="space-y-4">
                   <div className="space-y-1">
-                     <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">Planilha de Produtos</label>
-                     <input className="w-full p-4 bg-gray-50 rounded-xl border-gray-100 border text-xs outline-none focus:border-blue-500" placeholder="URL CSV" value={sheetUrl} onChange={e => setSheetUrl(e.target.value)} />
+                     <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">Produtos</label>
+                     <input className="w-full p-4 bg-gray-50 rounded-xl border-gray-100 border text-xs outline-none focus:border-blue-500" value={sheetUrl} onChange={e => setSheetUrl(e.target.value)} />
                   </div>
                   <div className="space-y-1">
-                     <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">Planilha de PINs</label>
-                     <input className="w-full p-4 bg-gray-50 rounded-xl border-gray-100 border text-xs outline-none focus:border-blue-500" placeholder="URL CSV" value={securityUrl} onChange={e => setSecurityUrl(e.target.value)} />
+                     <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">Senhas (PINs)</label>
+                     <input className="w-full p-4 bg-gray-50 rounded-xl border-gray-100 border text-xs outline-none focus:border-blue-500" value={securityUrl} onChange={e => setSecurityUrl(e.target.value)} />
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 mt-8">
-                  <button onClick={() => { localStorage.setItem('koncrecel_sheet_url', sheetUrl); localStorage.setItem('koncrecel_security_url', securityUrl); setShowConfig(false); fetchData(); }} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg">Salvar e Atualizar</button>
+                  <button onClick={() => { localStorage.setItem('koncrecel_sheet_url', sheetUrl); localStorage.setItem('koncrecel_security_url', securityUrl); setShowConfig(false); fetchData(); }} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg">Salvar Configurações</button>
                   <button onClick={() => setShowConfig(false)} className="w-full py-2 text-gray-400 font-bold uppercase text-[10px]">Fechar</button>
                 </div>
               </div>
@@ -257,22 +260,23 @@ const App: React.FC = () => {
         </div>
       ) : (
         <>
-          <header className="bg-white border-b border-gray-100 sticky top-0 z-40 px-3 py-2 shadow-sm backdrop-blur-md bg-white/95">
+          <header className="bg-white border-b border-gray-100 sticky top-0 z-40 px-3 py-1.5 shadow-sm backdrop-blur-md bg-white/95">
             <div className="flex justify-between items-center mb-1.5">
               <div className="flex items-center space-x-2">
                 <img 
                   src={processedLogoIcon} 
                   alt="K" 
-                  className="h-7 object-contain" 
+                  className="h-6 object-contain" 
                   onError={(e) => { e.currentTarget.src = 'https://raw.githubusercontent.com/Renan-Koncrecel/Catalogo/main/koncrecel-icon.png' }} 
                 />
-                <h1 className="text-[13px] font-black uppercase tracking-tighter text-gray-900 leading-none">Koncrecel <span className="text-blue-600">44-9.9164.7722</span></h1>
+                <h1 className="text-[12px] font-black uppercase tracking-tighter text-gray-900 leading-none">Koncrecel <span className="text-blue-600">44-9.9164.7722</span></h1>
               </div>
-              <div className="flex items-center gap-1">
-                <button onClick={fetchData} className="p-2 text-gray-400 hover:text-blue-600 transition-colors">
+              <div className="flex items-center gap-1.5">
+                <button onClick={handleFullReset} title="Resetar Pesquisa e Seleção" className="flex items-center px-2 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors border border-blue-100">
+                  <span className="text-[9px] font-black uppercase mr-1.5 tracking-widest">Reset</span>
                   <svg className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                 </button>
-                <button onClick={handleLogout} className="px-1.5 py-0.5 text-[8px] font-black uppercase text-red-500 border border-red-50 border-red-100 rounded-md">Sair</button>
+                <button onClick={handleLogout} className="px-2 py-1.5 text-[9px] font-black uppercase text-red-500 border border-red-100 rounded-lg bg-red-50/20">Sair</button>
               </div>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-1">
@@ -283,11 +287,11 @@ const App: React.FC = () => {
             </div>
           </header>
 
-          <main className="flex-1 p-2 pb-32">
+          <main className="flex-1 p-2 pb-32 bg-white">
             {loading && !products.length ? (
-              <div className="flex flex-col items-center justify-center py-20 space-y-3">
-                <div className="w-6 h-6 border-4 border-blue-50 border-t-blue-600 rounded-full animate-spin"></div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-gray-300">Carregando Itens...</p>
+              <div className="flex flex-col items-center justify-center py-24 space-y-4">
+                <div className="w-7 h-7 border-[3px] border-blue-50 border-t-blue-600 rounded-full animate-spin"></div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-300">Carregando...</p>
               </div>
             ) : (
               <ProductTable 
@@ -301,14 +305,14 @@ const App: React.FC = () => {
           </main>
 
           {selectedIds.size > 0 && (
-            <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md">
+            <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md animate-in fade-in slide-in-from-bottom-4 duration-300">
               <button 
                 onClick={() => setShowSendPicker(true)}
                 className="w-full bg-[#000000] text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between active:scale-95 transition-transform"
               >
-                <span className="ml-2 font-black uppercase text-[10px] tracking-widest">{selectedIds.size} selecionados</span>
+                <span className="ml-2 font-black uppercase text-[10px] tracking-widest">{selectedIds.size} itens na lista</span>
                 <div className="flex items-center space-x-2 bg-white/10 px-3 py-1.5 rounded-xl">
-                  <span className="text-[9px] font-black uppercase">Solicitar Orçamento</span>
+                  <span className="text-[9px] font-black uppercase">Pedir Orçamento</span>
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7-7 7M5 12h16" /></svg>
                 </div>
               </button>
@@ -318,24 +322,24 @@ const App: React.FC = () => {
           {showSendPicker && (
             <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[110] flex items-center justify-center p-6">
               <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-sm text-center shadow-2xl">
-                <h3 className="text-lg font-black uppercase mb-2 text-gray-900 leading-tight">Enviar solicitação</h3>
-                <p className="text-[10px] text-gray-400 mb-6 font-bold uppercase tracking-widest">Escolha o canal de contato</p>
+                <h3 className="text-lg font-black uppercase mb-2 text-gray-900 leading-tight">Enviar Orçamento</h3>
+                <p className="text-[10px] text-gray-400 mb-6 font-bold uppercase tracking-widest">Escolha o melhor canal</p>
                 <div className="grid grid-cols-1 gap-2.5">
                   <button onClick={() => handleSendRequest('whatsapp')} className="flex items-center justify-center space-x-3 bg-green-500 text-white p-4 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform">
-                    <span>WhatsApp</span>
+                    <span>Enviar para WhatsApp</span>
                   </button>
                   <button onClick={() => handleSendRequest('email')} className="flex items-center justify-center space-x-3 bg-blue-600 text-white p-4 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform">
-                    <span>E-mail</span>
+                    <span>Enviar para E-mail</span>
                   </button>
-                  <button onClick={() => setShowSendPicker(false)} className="mt-2 py-2 text-gray-300 font-bold uppercase text-[9px] tracking-widest">Fechar</button>
+                  <button onClick={() => setShowSendPicker(false)} className="mt-2 py-2 text-gray-300 font-bold uppercase text-[9px] tracking-widest">Voltar</button>
                 </div>
               </div>
             </div>
           )}
 
           <footer className="mt-auto py-8 text-center bg-gray-50 border-t border-gray-100 px-6">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">Koncrecel Representações</p>
-            <p className="text-[12px] font-bold text-gray-900">44-9.9164.7722</p>
+            <p className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-300 mb-1.5">Koncrecel Indústria Química</p>
+            <p className="text-[12px] font-black text-gray-900 tracking-tight">44-9.9164.7722</p>
           </footer>
         </>
       )}
