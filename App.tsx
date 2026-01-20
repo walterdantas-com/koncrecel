@@ -56,9 +56,13 @@ const App: React.FC = () => {
 
   const parseCSV = (text: string): string[][] => {
     const rows: string[][] = [];
-    const lines = text.trim().split(/\r?\n/);
+    // Remove caracteres de controle estranhos (BOM, etc)
+    const cleanText = text.replace(/^\uFEFF/, '').trim();
+    const lines = cleanText.split(/\r?\n/);
     if (lines.length === 0) return [];
+    
     const separator = lines[0].includes(';') ? ';' : ',';
+    
     for (let line of lines) {
       if (!line.trim()) continue;
       const fields: string[] = [];
@@ -68,11 +72,11 @@ const App: React.FC = () => {
         const char = line[i];
         if (char === '"') inQuotes = !inQuotes;
         else if (char === separator && !inQuotes) {
-          fields.push(field.trim());
+          fields.push(field.trim().replace(/^"|"$/g, ''));
           field = '';
         } else { field += char; }
       }
-      fields.push(field.trim());
+      fields.push(field.trim().replace(/^"|"$/g, ''));
       rows.push(fields);
     }
     return rows;
@@ -91,20 +95,20 @@ const App: React.FC = () => {
       const findIdx = (names: string[]) => header.findIndex(h => names.some(n => h.includes(n)));
       
       const idx = {
-        produto: findIdx(['produto', 'nome']),
-        tipo: findIdx(['tipo', 'categoria']),
-        aplicacao: findIdx(['aplicacao', 'onde']),
-        superficie: findIdx(['superficie', 'base']),
-        embalagens: findIdx(['embalagem']),
-        caracteristica: findIdx(['caracteristica', 'atributo']),
-        foto: findIdx(['foto', 'imagem']),
-        cores: findIdx(['cor', 'tonalidade']),
-        rendimento: findIdx(['rendimento'])
+        produto: findIdx(['produto', 'nome', 'item']),
+        tipo: findIdx(['tipo', 'categoria', 'grupo']),
+        aplicacao: findIdx(['aplicacao', 'onde', 'uso']),
+        superficie: findIdx(['superficie', 'base', 'substrato']),
+        embalagens: findIdx(['embalagem', 'embalagens', 'emb', 'unidade', 'medida']),
+        caracteristica: findIdx(['caracteristica', 'atributo', 'detalhe']),
+        foto: findIdx(['foto', 'imagem', 'link']),
+        cores: findIdx(['cor', 'tonalidade', 'cores']),
+        rendimento: findIdx(['rendimento', 'consumo'])
       };
 
       const mapped = rows.slice(1).map(f => {
         const rawPhotos = f[idx.foto] || '';
-        const photoList = rawPhotos.split(/[;,]/).map(url => convertDriveUrl(url)).filter(u => u !== '');
+        const photoList = rawPhotos.split(/[;|]/).map(url => convertDriveUrl(url)).filter(u => u !== '');
 
         return {
           produto: f[idx.produto] || 'Sem Nome',
@@ -117,7 +121,7 @@ const App: React.FC = () => {
           cores: f[idx.cores] || '',
           rendimento: f[idx.rendimento] || ''
         };
-      }).filter(p => p.produto !== 'Sem Nome');
+      }).filter(p => p.produto !== 'Sem Nome' && p.produto.trim() !== '');
       
       setProducts(mapped);
     } catch (err: any) {
@@ -132,20 +136,29 @@ const App: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setPinError(false);
-    if (pinInput === MASTER_PIN) {
+    
+    // Limpeza agressiva do input: remove espaços
+    const cleanInput = pinInput.trim().replace(/\s/g, '');
+    
+    if (cleanInput === MASTER_PIN) {
       setIsAuthorized(true);
       localStorage.setItem('koncrecel_authorized', 'true');
       return;
     }
+    
     setIsChecking(true);
     try {
       const response = await fetch(`${securityUrl.replace(/\s/g, '').trim()}?t=${Date.now()}`);
       const text = await response.text();
       const csvData = parseCSV(text);
-      // Achata todos os campos e limpa espaços para garantir que encontre o PIN
-      const pins = csvData.flat().map(p => p.trim().toString());
       
-      if (pins.some(p => p === pinInput)) {
+      // Normalização agressiva para comparação: remove pontos, vírgulas e espaços
+      const normalize = (s: string) => s.toString().toLowerCase().replace(/[.,\s]/g, '');
+      
+      const targetPin = normalize(cleanInput);
+      const pins = csvData.flat().map(p => normalize(p));
+      
+      if (pins.some(p => p === targetPin && p !== '')) {
         setIsAuthorized(true);
         localStorage.setItem('koncrecel_authorized', 'true');
       } else { 
@@ -192,140 +205,140 @@ const App: React.FC = () => {
     setShowSendPicker(false);
   };
 
-  if (!isAuthorized) {
-    return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
-        <div className="max-w-sm w-full text-center">
-          <img 
-            src={processedLogoFull} 
-            alt="Koncrecel" 
-            className="w-48 mx-auto mb-10 drop-shadow-sm" 
-            onError={(e) => { e.currentTarget.src = 'https://raw.githubusercontent.com/Renan-Koncrecel/Catalogo/main/koncrecel-full.png' }} 
-          />
-          <h2 className="text-xl font-black uppercase tracking-widest mb-10 text-gray-800">Koncrecel 44-9.9164.7722</h2>
-          <form onSubmit={handleLogin} className="space-y-6">
-            <input 
-              type="password" 
-              inputMode="numeric" 
-              placeholder="Digite seu PIN" 
-              className={`w-full text-center text-4xl py-5 bg-gray-50 border-2 rounded-2xl outline-none transition-all ${pinError ? 'border-red-500 animate-shake text-red-500' : 'border-gray-100 focus:border-blue-500 text-gray-900'}`} 
-              value={pinInput} 
-              onChange={e => setPinInput(e.target.value)} 
-            />
-            <button type="submit" disabled={isChecking} className="w-full bg-[#000000] text-white font-black py-5 rounded-2xl uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-transform">
-              {isChecking ? "Verificando..." : "Entrar"}
-            </button>
-            {pinError && <p className="text-red-500 text-[10px] font-black uppercase tracking-widest">Acesso não autorizado</p>}
-          </form>
-          <button onClick={() => setShowConfig(true)} className="mt-12 text-[9px] text-gray-300 uppercase font-bold hover:text-blue-500 tracking-widest">Configurações do Sistema</button>
-        </div>
-        {showConfig && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white p-8 rounded-[2.5rem] w-full max-w-sm shadow-2xl">
-              <h3 className="font-black uppercase mb-6 text-gray-900 tracking-widest">Ajustes Técnicos</h3>
-              <div className="space-y-4">
-                <div className="space-y-1">
-                   <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">Planilha de Produtos</label>
-                   <input className="w-full p-4 bg-gray-50 rounded-xl border-gray-100 border text-xs outline-none focus:border-blue-500" placeholder="URL CSV" value={sheetUrl} onChange={e => setSheetUrl(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                   <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">Planilha de PINs</label>
-                   <input className="w-full p-4 bg-gray-50 rounded-xl border-gray-100 border text-xs outline-none focus:border-blue-500" placeholder="URL CSV" value={securityUrl} onChange={e => setSecurityUrl(e.target.value)} />
-                </div>
-              </div>
-              <div className="flex flex-col gap-2 mt-8">
-                <button onClick={() => { localStorage.setItem('koncrecel_sheet_url', sheetUrl); localStorage.setItem('koncrecel_security_url', securityUrl); setShowConfig(false); fetchData(); }} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg">Salvar e Atualizar</button>
-                <button onClick={() => setShowConfig(false)} className="w-full py-2 text-gray-400 font-bold uppercase text-[10px]">Fechar</button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-40 px-3 py-2.5 shadow-sm backdrop-blur-md bg-white/95">
-        <div className="flex justify-between items-center mb-2">
-          <div className="flex items-center space-x-2">
+      {!isAuthorized ? (
+        <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
+          <div className="max-w-sm w-full text-center">
             <img 
-              src={processedLogoIcon} 
-              alt="K" 
-              className="h-7 object-contain" 
-              onError={(e) => { e.currentTarget.src = 'https://raw.githubusercontent.com/Renan-Koncrecel/Catalogo/main/koncrecel-icon.png' }} 
+              src={processedLogoFull} 
+              alt="Koncrecel" 
+              className="w-48 mx-auto mb-10 drop-shadow-sm" 
+              onError={(e) => { e.currentTarget.src = 'https://raw.githubusercontent.com/Renan-Koncrecel/Catalogo/main/koncrecel-full.png' }} 
             />
-            <h1 className="text-md font-black uppercase tracking-tighter text-gray-900 leading-none">Koncrecel <span className="text-blue-600">44-9.9164.7722</span></h1>
-          </div>
-          <div className="flex items-center gap-1">
-            <button onClick={fetchData} className="p-2 text-gray-400 hover:text-blue-600 transition-colors">
-              <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-            </button>
-            <button onClick={handleLogout} className="px-2 py-1 text-[9px] font-black uppercase text-red-500 border border-red-100 rounded-lg hover:bg-red-50">Sair</button>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5">
-          <SearchField label="Produto" placeholder="Buscar..." value={filters.produto} onChange={v => setFilters(f => ({...f, produto: v}))} />
-          <SearchField label="Tipo" placeholder="Buscar..." value={filters.tipo} onChange={v => setFilters(f => ({...f, tipo: v}))} />
-          <SearchField label="Aplicação" placeholder="Buscar..." value={filters.aplicacao} onChange={v => setFilters(f => ({...f, aplicacao: v}))} />
-          <SearchField label="Base" placeholder="Buscar..." value={filters.superficie} onChange={v => setFilters(f => ({...f, superficie: v}))} />
-        </div>
-      </header>
-
-      <main className="flex-1 p-2 pb-32">
-        {loading && !products.length ? (
-          <div className="flex flex-col items-center justify-center py-20 space-y-3">
-            <div className="w-7 h-7 border-4 border-blue-50 border-t-blue-600 rounded-full animate-spin"></div>
-            <p className="text-[9px] font-black uppercase tracking-widest text-gray-300">Carregando Itens...</p>
-          </div>
-        ) : (
-          <ProductTable 
-            products={filteredProducts} 
-            highlight={filters} 
-            selectedIds={selectedIds} 
-            onToggleSelect={handleToggleSelect} 
-            logoUrl={processedLogoIcon}
-          />
-        )}
-      </main>
-
-      {selectedIds.size > 0 && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md">
-          <button 
-            onClick={() => setShowSendPicker(true)}
-            className="w-full bg-[#000000] text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between active:scale-95 transition-transform"
-          >
-            <span className="ml-2 font-black uppercase text-[10px] tracking-widest">{selectedIds.size} selecionados</span>
-            <div className="flex items-center space-x-2 bg-white/10 px-3 py-1.5 rounded-xl">
-              <span className="text-[9px] font-black uppercase">Solicitar Orçamento</span>
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7-7 7M5 12h16" /></svg>
-            </div>
-          </button>
-        </div>
-      )}
-
-      {showSendPicker && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[110] flex items-center justify-center p-6">
-          <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-sm text-center shadow-2xl">
-            <h3 className="text-lg font-black uppercase mb-2 text-gray-900 leading-tight">Enviar solicitação</h3>
-            <p className="text-[10px] text-gray-400 mb-6 font-bold uppercase tracking-widest">Escolha o canal de contato</p>
-            <div className="grid grid-cols-1 gap-2.5">
-              <button onClick={() => handleSendRequest('whatsapp')} className="flex items-center justify-center space-x-3 bg-green-500 text-white p-4 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform">
-                <span>WhatsApp</span>
+            <h2 className="text-xl font-black uppercase tracking-widest mb-10 text-gray-800">Koncrecel 44-9.9164.7722</h2>
+            <form onSubmit={handleLogin} className="space-y-6">
+              <input 
+                type="text" 
+                inputMode="numeric" 
+                placeholder="Digite seu PIN" 
+                className={`w-full text-center text-4xl py-5 bg-gray-50 border-2 rounded-2xl outline-none transition-all ${pinError ? 'border-red-500 animate-shake text-red-500' : 'border-gray-100 focus:border-blue-500 text-gray-900'}`} 
+                value={pinInput} 
+                onChange={e => setPinInput(e.target.value)} 
+              />
+              <button type="submit" disabled={isChecking} className="w-full bg-[#000000] text-white font-black py-5 rounded-2xl uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-transform">
+                {isChecking ? "Verificando..." : "Entrar"}
               </button>
-              <button onClick={() => handleSendRequest('email')} className="flex items-center justify-center space-x-3 bg-blue-600 text-white p-4 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform">
-                <span>E-mail</span>
-              </button>
-              <button onClick={() => setShowSendPicker(false)} className="mt-2 py-2 text-gray-300 font-bold uppercase text-[9px] tracking-widest">Fechar</button>
-            </div>
+              {pinError && <p className="text-red-500 text-[10px] font-black uppercase tracking-widest">Acesso não autorizado</p>}
+            </form>
+            <button onClick={() => setShowConfig(true)} className="mt-12 text-[9px] text-gray-300 uppercase font-bold hover:text-blue-500 tracking-widest">Configurações do Sistema</button>
           </div>
+          {showConfig && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white p-8 rounded-[2.5rem] w-full max-w-sm shadow-2xl">
+                <h3 className="font-black uppercase mb-6 text-gray-900 tracking-widest">Ajustes Técnicos</h3>
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                     <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">Planilha de Produtos</label>
+                     <input className="w-full p-4 bg-gray-50 rounded-xl border-gray-100 border text-xs outline-none focus:border-blue-500" placeholder="URL CSV" value={sheetUrl} onChange={e => setSheetUrl(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                     <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">Planilha de PINs</label>
+                     <input className="w-full p-4 bg-gray-50 rounded-xl border-gray-100 border text-xs outline-none focus:border-blue-500" placeholder="URL CSV" value={securityUrl} onChange={e => setSecurityUrl(e.target.value)} />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 mt-8">
+                  <button onClick={() => { localStorage.setItem('koncrecel_sheet_url', sheetUrl); localStorage.setItem('koncrecel_security_url', securityUrl); setShowConfig(false); fetchData(); }} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg">Salvar e Atualizar</button>
+                  <button onClick={() => setShowConfig(false)} className="w-full py-2 text-gray-400 font-bold uppercase text-[10px]">Fechar</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      ) : (
+        <>
+          <header className="bg-white border-b border-gray-100 sticky top-0 z-40 px-3 py-2 shadow-sm backdrop-blur-md bg-white/95">
+            <div className="flex justify-between items-center mb-1.5">
+              <div className="flex items-center space-x-2">
+                <img 
+                  src={processedLogoIcon} 
+                  alt="K" 
+                  className="h-7 object-contain" 
+                  onError={(e) => { e.currentTarget.src = 'https://raw.githubusercontent.com/Renan-Koncrecel/Catalogo/main/koncrecel-icon.png' }} 
+                />
+                <h1 className="text-[13px] font-black uppercase tracking-tighter text-gray-900 leading-none">Koncrecel <span className="text-blue-600">44-9.9164.7722</span></h1>
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={fetchData} className="p-2 text-gray-400 hover:text-blue-600 transition-colors">
+                  <svg className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                </button>
+                <button onClick={handleLogout} className="px-1.5 py-0.5 text-[8px] font-black uppercase text-red-500 border border-red-50 border-red-100 rounded-md">Sair</button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-1">
+              <SearchField label="Produto" placeholder="Buscar..." value={filters.produto} onChange={v => setFilters(f => ({...f, produto: v}))} />
+              <SearchField label="Tipo" placeholder="Buscar..." value={filters.tipo} onChange={v => setFilters(f => ({...f, tipo: v}))} />
+              <SearchField label="Uso" placeholder="Buscar..." value={filters.aplicacao} onChange={v => setFilters(f => ({...f, aplicacao: v}))} />
+              <SearchField label="Base" placeholder="Buscar..." value={filters.superficie} onChange={v => setFilters(f => ({...f, superficie: v}))} />
+            </div>
+          </header>
 
-      <footer className="mt-auto py-8 text-center bg-gray-50 border-t border-gray-100 px-6">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">Koncrecel Representações</p>
-        <p className="text-[12px] font-bold text-gray-900">44-9.9164.7722</p>
-      </footer>
+          <main className="flex-1 p-2 pb-32">
+            {loading && !products.length ? (
+              <div className="flex flex-col items-center justify-center py-20 space-y-3">
+                <div className="w-6 h-6 border-4 border-blue-50 border-t-blue-600 rounded-full animate-spin"></div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-300">Carregando Itens...</p>
+              </div>
+            ) : (
+              <ProductTable 
+                products={filteredProducts} 
+                highlight={filters} 
+                selectedIds={selectedIds} 
+                onToggleSelect={handleToggleSelect} 
+                logoUrl={processedLogoIcon}
+              />
+            )}
+          </main>
+
+          {selectedIds.size > 0 && (
+            <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md">
+              <button 
+                onClick={() => setShowSendPicker(true)}
+                className="w-full bg-[#000000] text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between active:scale-95 transition-transform"
+              >
+                <span className="ml-2 font-black uppercase text-[10px] tracking-widest">{selectedIds.size} selecionados</span>
+                <div className="flex items-center space-x-2 bg-white/10 px-3 py-1.5 rounded-xl">
+                  <span className="text-[9px] font-black uppercase">Solicitar Orçamento</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7-7 7M5 12h16" /></svg>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {showSendPicker && (
+            <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[110] flex items-center justify-center p-6">
+              <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-sm text-center shadow-2xl">
+                <h3 className="text-lg font-black uppercase mb-2 text-gray-900 leading-tight">Enviar solicitação</h3>
+                <p className="text-[10px] text-gray-400 mb-6 font-bold uppercase tracking-widest">Escolha o canal de contato</p>
+                <div className="grid grid-cols-1 gap-2.5">
+                  <button onClick={() => handleSendRequest('whatsapp')} className="flex items-center justify-center space-x-3 bg-green-500 text-white p-4 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform">
+                    <span>WhatsApp</span>
+                  </button>
+                  <button onClick={() => handleSendRequest('email')} className="flex items-center justify-center space-x-3 bg-blue-600 text-white p-4 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform">
+                    <span>E-mail</span>
+                  </button>
+                  <button onClick={() => setShowSendPicker(false)} className="mt-2 py-2 text-gray-300 font-bold uppercase text-[9px] tracking-widest">Fechar</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <footer className="mt-auto py-8 text-center bg-gray-50 border-t border-gray-100 px-6">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">Koncrecel Representações</p>
+            <p className="text-[12px] font-bold text-gray-900">44-9.9164.7722</p>
+          </footer>
+        </>
+      )}
     </div>
   );
 };
