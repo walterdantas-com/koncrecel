@@ -7,9 +7,10 @@ interface ProductTableProps {
   highlight: any;
   selectedIds: Set<string>;
   onToggleSelect: (name: string) => void;
+  logoUrl?: string;
 }
 
-const ProductTable: React.FC<ProductTableProps> = ({ products, highlight, selectedIds, onToggleSelect }) => {
+const ProductTable: React.FC<ProductTableProps> = ({ products, highlight, selectedIds, onToggleSelect, logoUrl }) => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [currentPhotoIdx, setCurrentPhotoIdx] = useState(0);
 
@@ -116,11 +117,18 @@ const ProductTable: React.FC<ProductTableProps> = ({ products, highlight, select
             <div className="flex-1 overflow-y-auto p-8 sm:p-12 space-y-8 bg-white">
               <div className="border-b border-gray-100 pb-6 flex justify-between items-start">
                 <h2 className="text-3xl font-black text-[#000000] uppercase leading-none tracking-tight flex-1">{selectedProduct.produto}</h2>
-                <img src="klogo-icon.png" className="h-10 opacity-10 ml-4 object-contain" alt="K" />
+                {logoUrl && (
+                  <img 
+                    src={logoUrl} 
+                    className="h-10 opacity-10 ml-4 object-contain" 
+                    alt="K" 
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                )}
               </div>
 
               <div className="grid grid-cols-1 gap-6">
-                <DetailRow label="Tipo do Produto" value={selectedProduct.tipo} />
+                <DetailRow label="Tipo do produto" value={selectedProduct.tipo} />
                 <DetailRow label="Aplicação padrão" value={selectedProduct.aplicacao} />
                 <DetailRow label="Superfície para uso" value={selectedProduct.superficie} />
                 <DetailRow label="Embalagens" value={selectedProduct.embalagens} />
@@ -147,9 +155,10 @@ const ProductTable: React.FC<ProductTableProps> = ({ products, highlight, select
 
 const DetailRow: React.FC<{ label: string; value: string }> = ({ label, value }) => {
   if (!value) return null;
+  const formattedLabel = label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[10px] font-bold text-[#808080] uppercase tracking-widest">{label}</span>
+      <span className="text-[11px] font-bold text-[#808080] tracking-wide uppercase">{formattedLabel}</span>
       <span className="text-[16px] font-medium text-[#000000] leading-relaxed whitespace-pre-wrap">{value}</span>
     </div>
   );
