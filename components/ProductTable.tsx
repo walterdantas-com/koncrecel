@@ -114,7 +114,6 @@ const ProductTable: React.FC<ProductTableProps> = ({ products, highlight, select
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
               
-              {/* Caixa de Seleção na Ficha de Produto solicitada */}
               <div className="flex items-center gap-2 bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-100 shadow-sm">
                 <span className="text-[9px] font-black uppercase text-blue-600 tracking-widest">Orçamento</span>
                 <input 
@@ -126,18 +125,30 @@ const ProductTable: React.FC<ProductTableProps> = ({ products, highlight, select
               </div>
             </div>
 
-            {/* Carrossel de Fotos do Produto */}
+            {/* Carrossel de Fotos do Produto - Ajustado conforme solicitação */}
             <div className="relative w-full aspect-square bg-white shrink-0 p-10 pt-20 flex items-center justify-center border-b border-gray-50">
               {currentProduct.fotos && currentProduct.fotos.length > 0 ? (
-                <img src={currentProduct.fotos[currentPhotoIdx]} alt={currentProduct.produto} className="max-w-full max-h-full object-contain drop-shadow-xl" />
+                <img src={currentProduct.fotos[currentPhotoIdx]} alt={currentProduct.produto} className="max-w-full max-h-full object-contain drop-shadow-xl transition-all duration-300" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-50"><svg className="w-20 h-20" fill="currentColor" viewBox="0 0 20 20"><path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"/></svg></div>
               )}
 
+              {/* Indicadores de fotos (dots) - Melhora na área de toque e tamanho */}
               {currentProduct.fotos && currentProduct.fotos.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/5 px-4 py-2 rounded-full backdrop-blur-sm">
                   {currentProduct.fotos.map((_, i) => (
-                    <button key={i} onClick={() => setCurrentPhotoIdx(i)} className={`h-1 rounded-full transition-all ${i === currentPhotoIdx ? 'w-5 bg-blue-500' : 'w-1.5 bg-gray-200'}`} />
+                    <button 
+                      key={i} 
+                      onClick={() => setCurrentPhotoIdx(i)} 
+                      className="group relative flex items-center justify-center py-2 px-1 focus:outline-none"
+                      aria-label={`Ver imagem ${i + 1}`}
+                    >
+                      {/* Círculo visível maior e mais fácil de clicar */}
+                      <span className={`h-2.5 rounded-full transition-all duration-300 ${i === currentPhotoIdx ? 'w-8 bg-blue-600 shadow-md shadow-blue-200' : 'w-2.5 bg-gray-300 group-hover:bg-gray-400'}`} />
+                      
+                      {/* Hit area invisível expandida para facilitar o toque no celular */}
+                      <span className="absolute inset-0 w-full h-full -top-1 -bottom-1" />
+                    </button>
                   ))}
                 </div>
               )}
