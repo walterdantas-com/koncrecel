@@ -7,7 +7,7 @@ import ProductTable from './components/ProductTable';
 const MASTER_PIN = '2025';
 // Planilha de Produtos
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTL6WsNyflZ2dg_hWRU8fdqk5VWYVhp4ymIVMa0Wv50onOu_7elzdPeO5RkzPHlQ0OHDI0AgfRmo2lh/pub?gid=0&single=true&output=csv';
-// Planilha de Segurança (Nova URL fornecida pelo usuário)
+// Planilha de Segurança (PINs)
 const DEFAULT_SECURITY_URL = 'https://docs.google.com/spreadsheets/d/15Jx0pkSQsgW_bATIAoc14yggdU0dZ-nAOl0s2YYggdE/export?format=csv&gid=0';
 
 const KONCRECEL_WHATSAPP = '44991647722';
@@ -143,7 +143,8 @@ const App: React.FC = () => {
     e.preventDefault();
     setPinError(false);
     
-    const normalize = (s: any) => s ? s.toString().toLowerCase().replace(/[.,\s-]/g, '').trim() : '';
+    // Normalização agressiva: remove tudo que não for alfanumérico
+    const normalize = (s: any) => s ? s.toString().toLowerCase().replace(/[^a-z0-9]/g, '').trim() : '';
     const cleanInput = normalize(pinInput);
     
     if (cleanInput === normalize(MASTER_PIN)) {
@@ -154,20 +155,26 @@ const App: React.FC = () => {
     
     setIsChecking(true);
     try {
-      const response = await fetch(`${securityUrl.replace(/\s/g, '').trim()}`);
+      // Adiciona t= timestamp para forçar o download da versão mais recente da planilha (cache-busting)
+      const secUrl = securityUrl.replace(/\s/g, '').trim();
+      const connector = secUrl.includes('?') ? '&' : '?';
+      const finalUrl = `${secUrl}${connector}t=${Date.now()}`;
+      
+      const response = await fetch(finalUrl, { cache: 'no-store' });
       const text = await response.text();
       const csvData = parseCSV(text);
       
-      // Verifica especificamente na Coluna A de cada linha, ignorando o cabeçalho
-      const pins = csvData.slice(1).map(row => normalize(row[0]));
+      // Verifica o PIN em qualquer célula da planilha para não ter erro de cabeçalho
+      const allCells = csvData.flat().map(cell => normalize(cell));
       
-      if (pins.some(p => p === cleanInput && p !== '')) {
+      if (allCells.some(p => p === cleanInput && p !== '')) {
         setIsAuthorized(true);
         localStorage.setItem('koncrecel_authorized', 'true');
       } else { 
         setPinError(true); 
       }
     } catch (err) { 
+      console.error("Erro no login:", err);
       setPinError(true); 
     }
     finally { setIsChecking(false); }
