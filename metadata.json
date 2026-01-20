@@ -1,5 +1,6 @@
+
 {
-  "name": "Koncrecel Catálogo",
-  "description": "Sistema de busca avançada para o catálogo de produtos Koncrecel, permitindo filtrar por produto, atributos, aplicação e superfície.",
+  "name": "Koncrecel 44-9.9164.7722",
+  "description": "Catálogo inteligente de produtos Koncrecel com busca rápida por produto, tipo, aplicação e base.",
   "requestFramePermissions": []
 }

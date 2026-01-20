@@ -4,13 +4,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Koncrecel Catálogo</title>
+    <title>Koncrecel 44-9.9164.7722</title>
     
-    <!-- Meta tags para PWA -->
-    <meta name="theme-color" content="#2563eb" />
+    <!-- Meta tags para PWA e modo Standalone (Tela Cheia) -->
+    <meta name="theme-color" content="#FFFFFF" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Koncrecel" />
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -19,6 +19,7 @@
       body {
         font-family: 'Exo 2', sans-serif;
         -webkit-tap-highlight-color: transparent;
+        background-color: #ffffff;
       }
       @keyframes shake {
         0%, 100% { transform: translateX(0); }
@@ -28,7 +29,11 @@
       .animate-shake {
         animation: shake 0.2s ease-in-out 0s 2;
       }
-      /* Prevenção de zoom indesejado em inputs no iOS */
+      /* Melhora visibilidade do scrollbar no desktop */
+      ::-webkit-scrollbar { width: 4px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+      
       input, textarea { font-size: 16px !important; }
       @media (min-width: 768px) {
         input, textarea { font-size: 14px !important; }
@@ -45,7 +50,7 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-gray-50 text-gray-900">
+  <body class="bg-white text-gray-900">
     <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
