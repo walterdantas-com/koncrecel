@@ -5,9 +5,7 @@ import SearchField from './components/SearchField';
 import ProductTable from './components/ProductTable';
 
 const MASTER_PIN = '2025';
-// Planilha de Produtos
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTL6WsNyflZ2dg_hWRU8fdqk5VWYVhp4ymIVMa0Wv50onOu_7elzdPeO5RkzPHlQ0OHDI0AgfRmo2lh/pub?gid=0&single=true&output=csv';
-// Planilha de Segurança (PINs)
 const DEFAULT_SECURITY_URL = 'https://docs.google.com/spreadsheets/d/15Jx0pkSQsgW_bATIAoc14yggdU0dZ-nAOl0s2YYggdE/export?format=csv&gid=0';
 
 const KONCRECEL_WHATSAPP = '44991647722';
@@ -108,7 +106,8 @@ const App: React.FC = () => {
 
       const mapped = rows.slice(1).map(f => {
         const rawPhotos = f[idx.foto] || '';
-        const photoList = rawPhotos.split(/[;|]/).map(url => convertDriveUrl(url)).filter(u => u !== '');
+        // Ajustado para aceitar vírgula, ponto e vírgula ou espaço como separador de fotos
+        const photoList = rawPhotos.split(/[;|,]/).map(url => convertDriveUrl(url)).filter(u => u !== '');
 
         return {
           produto: f[idx.produto] || '',
@@ -143,7 +142,6 @@ const App: React.FC = () => {
     e.preventDefault();
     setPinError(false);
     
-    // Normalização agressiva: remove tudo que não for alfanumérico
     const normalize = (s: any) => s ? s.toString().toLowerCase().replace(/[^a-z0-9]/g, '').trim() : '';
     const cleanInput = normalize(pinInput);
     
@@ -155,7 +153,6 @@ const App: React.FC = () => {
     
     setIsChecking(true);
     try {
-      // Adiciona t= timestamp para forçar o download da versão mais recente da planilha (cache-busting)
       const secUrl = securityUrl.replace(/\s/g, '').trim();
       const connector = secUrl.includes('?') ? '&' : '?';
       const finalUrl = `${secUrl}${connector}t=${Date.now()}`;
@@ -163,8 +160,6 @@ const App: React.FC = () => {
       const response = await fetch(finalUrl, { cache: 'no-store' });
       const text = await response.text();
       const csvData = parseCSV(text);
-      
-      // Verifica o PIN em qualquer célula da planilha para não ter erro de cabeçalho
       const allCells = csvData.flat().map(cell => normalize(cell));
       
       if (allCells.some(p => p === cleanInput && p !== '')) {
@@ -174,7 +169,6 @@ const App: React.FC = () => {
         setPinError(true); 
       }
     } catch (err) { 
-      console.error("Erro no login:", err);
       setPinError(true); 
     }
     finally { setIsChecking(false); }
@@ -203,7 +197,11 @@ const App: React.FC = () => {
 
     let message = `*Solicitação de Orçamento - Koncrecel*\n\n`;
     selectedItems.forEach(item => {
-      message += `• *${item.produto}*\n  Embalagens: ${item.embalagens}\n\n`;
+      // Ajustado: Quebra de linha por embalagem e remoção do rótulo "Embalagens:" conforme solicitado
+      const embalagensList = item.embalagens.split(/[,;]/).map(s => s.trim()).filter(s => s !== '');
+      const embalagensText = embalagensList.length > 0 ? embalagensList.join('\n') : '';
+      
+      message += `• *${item.produto}*\n${embalagensText}\n\n`;
     });
 
     if (method === 'whatsapp') {
@@ -220,26 +218,13 @@ const App: React.FC = () => {
       {!isAuthorized ? (
         <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
           <div className="max-w-sm w-full text-center">
-            <img 
-              src={processedLogoFull} 
-              alt="Koncrecel" 
-              className="w-48 mx-auto mb-10 drop-shadow-sm" 
-              onError={(e) => { e.currentTarget.src = 'https://raw.githubusercontent.com/Renan-Koncrecel/Catalogo/main/koncrecel-full.png' }} 
-            />
+            <img src={processedLogoFull} alt="Koncrecel" className="w-48 mx-auto mb-10 drop-shadow-sm" />
             <h2 className="text-xl font-black uppercase tracking-widest mb-10 text-gray-800">Koncrecel 44-9.9164.7722</h2>
             <form onSubmit={handleLogin} className="space-y-6">
-              <input 
-                type="text" 
-                inputMode="numeric" 
-                placeholder="Digite seu PIN" 
-                className={`w-full text-center text-4xl py-5 bg-gray-50 border-2 rounded-2xl outline-none transition-all ${pinError ? 'border-red-500 animate-shake text-red-500' : 'border-gray-100 focus:border-blue-500 text-gray-900'}`} 
-                value={pinInput} 
-                onChange={e => setPinInput(e.target.value)} 
-              />
+              <input type="text" inputMode="numeric" placeholder="Digite seu PIN" className={`w-full text-center text-4xl py-5 bg-gray-50 border-2 rounded-2xl outline-none transition-all ${pinError ? 'border-red-500 animate-shake text-red-500' : 'border-gray-100 focus:border-blue-500 text-gray-900'}`} value={pinInput} onChange={e => setPinInput(e.target.value)} />
               <button type="submit" disabled={isChecking} className="w-full bg-[#000000] text-white font-black py-5 rounded-2xl uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-transform">
                 {isChecking ? "Verificando..." : "Entrar"}
               </button>
-              {pinError && <p className="text-red-500 text-[10px] font-black uppercase tracking-widest mt-3">PIN incorreto ou não autorizado</p>}
             </form>
             <button onClick={() => setShowConfig(true)} className="mt-12 text-[9px] text-gray-300 uppercase font-bold hover:text-blue-500 tracking-widest">Configuração Técnica</button>
           </div>
@@ -270,16 +255,11 @@ const App: React.FC = () => {
           <header className="bg-white border-b border-gray-100 sticky top-0 z-40 px-3 py-1.5 shadow-sm backdrop-blur-md bg-white/95">
             <div className="flex justify-between items-center mb-1.5">
               <div className="flex items-center space-x-2">
-                <img 
-                  src={processedLogoIcon} 
-                  alt="K" 
-                  className="h-6 object-contain" 
-                  onError={(e) => { e.currentTarget.src = 'https://raw.githubusercontent.com/Renan-Koncrecel/Catalogo/main/koncrecel-icon.png' }} 
-                />
+                <img src={processedLogoIcon} alt="K" className="h-6 object-contain" />
                 <h1 className="text-[12px] font-black uppercase tracking-tighter text-gray-900 leading-none">Koncrecel <span className="text-blue-600">44-9.9164.7722</span></h1>
               </div>
               <div className="flex items-center gap-1.5">
-                <button onClick={handleFullReset} title="Resetar Pesquisa e Seleção" className="flex items-center px-2 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors border border-blue-100">
+                <button onClick={handleFullReset} title="Reset" className="flex items-center px-2 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors border border-blue-100">
                   <span className="text-[9px] font-black uppercase mr-1.5 tracking-widest">Reset</span>
                   <svg className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                 </button>
@@ -313,10 +293,7 @@ const App: React.FC = () => {
 
           {selectedIds.size > 0 && (
             <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-md animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <button 
-                onClick={() => setShowSendPicker(true)}
-                className="w-full bg-[#000000] text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between active:scale-95 transition-transform"
-              >
+              <button onClick={() => setShowSendPicker(true)} className="w-full bg-[#000000] text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between active:scale-95 transition-transform">
                 <span className="ml-2 font-black uppercase text-[10px] tracking-widest">{selectedIds.size} itens na lista</span>
                 <div className="flex items-center space-x-2 bg-white/10 px-3 py-1.5 rounded-xl">
                   <span className="text-[9px] font-black uppercase">Pedir Orçamento</span>
@@ -330,24 +307,14 @@ const App: React.FC = () => {
             <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[110] flex items-center justify-center p-6">
               <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-sm text-center shadow-2xl">
                 <h3 className="text-lg font-black uppercase mb-2 text-gray-900 leading-tight">Enviar Orçamento</h3>
-                <p className="text-[10px] text-gray-400 mb-6 font-bold uppercase tracking-widest">Escolha o melhor canal</p>
                 <div className="grid grid-cols-1 gap-2.5">
-                  <button onClick={() => handleSendRequest('whatsapp')} className="flex items-center justify-center space-x-3 bg-green-500 text-white p-4 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform">
-                    <span>Enviar para WhatsApp</span>
-                  </button>
-                  <button onClick={() => handleSendRequest('email')} className="flex items-center justify-center space-x-3 bg-blue-600 text-white p-4 rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-transform">
-                    <span>Enviar para E-mail</span>
-                  </button>
-                  <button onClick={() => setShowSendPicker(false)} className="mt-2 py-2 text-gray-300 font-bold uppercase text-[9px] tracking-widest">Voltar</button>
+                  <button onClick={() => handleSendRequest('whatsapp')} className="bg-green-500 text-white p-4 rounded-xl font-black uppercase text-[10px] tracking-widest">WhatsApp</button>
+                  <button onClick={() => handleSendRequest('email')} className="bg-blue-600 text-white p-4 rounded-xl font-black uppercase text-[10px] tracking-widest">E-mail</button>
+                  <button onClick={() => setShowSendPicker(false)} className="mt-2 py-2 text-gray-300 font-bold uppercase text-[9px]">Voltar</button>
                 </div>
               </div>
             </div>
           )}
-
-          <footer className="mt-auto py-8 text-center bg-gray-50 border-t border-gray-100 px-6">
-            <p className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-300 mb-1.5">Koncrecel Indústria Química</p>
-            <p className="text-[12px] font-black text-gray-900 tracking-tight">44-9.9164.7722</p>
-          </footer>
         </>
       )}
     </div>

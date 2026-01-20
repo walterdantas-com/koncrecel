@@ -11,7 +11,8 @@ interface SearchFieldProps {
 const SearchField: React.FC<SearchFieldProps> = ({ label, placeholder, value, onChange }) => {
   return (
     <div className="flex flex-row items-center space-x-1 w-full bg-gray-50/30 rounded-lg px-1.5 py-0.5 border border-transparent">
-      <label className="text-[7.5px] font-black text-[#999999] tracking-tighter uppercase w-[38px] shrink-0 leading-none">
+      {/* Rótulo alterado para text-blue-600 conforme solicitado */}
+      <label className="text-[7.5px] font-black text-blue-600 tracking-tighter uppercase w-[38px] shrink-0 leading-none">
         {label}
       </label>
       <div className="relative flex-1">
